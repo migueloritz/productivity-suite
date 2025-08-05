@@ -31,8 +31,15 @@ class CacheService:
     async def connect(self):
         """Connect to Redis"""
         if not self._redis:
-            self._redis = await redis.from_url(self.redis_url, decode_responses=True)
-            logger.info("Connected to Redis cache")
+            try:
+                self._redis = await redis.from_url(self.redis_url, decode_responses=True)
+                # Test the connection
+                await self._redis.ping()
+                logger.info("Connected to Redis cache")
+            except Exception as e:
+                logger.error(f"Failed to connect to Redis: {e}")
+                self._redis = None
+                raise
     
     async def disconnect(self):
         """Disconnect from Redis"""
@@ -45,6 +52,14 @@ class CacheService:
         """Ensure Redis connection is established"""
         if not self._redis:
             await self.connect()
+        else:
+            # Test existing connection
+            try:
+                await self._redis.ping()
+            except Exception as e:
+                logger.warning(f"Redis connection lost, reconnecting: {e}")
+                await self.disconnect()
+                await self.connect()
     
     def _get_key(self, prefix: str, identifier: str) -> str:
         """Generate cache key"""
@@ -66,13 +81,21 @@ class CacheService:
     
     async def set(self, key: str, value: Any, ttl: int = None) -> bool:
         """Set value in cache with TTL"""
+        if not key:
+            logger.error("Cache key cannot be empty")
+            return False
+            
         await self._ensure_connected()
         try:
             # Convert to JSON if not string
             if not isinstance(value, str):
-                value = json.dumps(value)
+                if hasattr(value, 'model_dump_json'):
+                    # Pydantic model
+                    value = value.model_dump_json()
+                else:
+                    value = json.dumps(value, default=str)  # Handle datetime and other types
             
-            if ttl:
+            if ttl and ttl > 0:
                 await self._redis.setex(key, ttl, value)
             else:
                 await self._redis.set(key, value)
@@ -80,7 +103,7 @@ class CacheService:
             logger.debug(f"Cache set: {key}")
             return True
         except Exception as e:
-            logger.error(f"Cache set error: {e}")
+            logger.error(f"Cache set error for key '{key}': {e}")
             return False
     
     async def delete(self, key: str) -> bool:

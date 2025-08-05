@@ -86,6 +86,11 @@ export class AIManager extends EventEmitter {
       throw new Error('AI Manager not initialized');
     }
 
+    // Input validation
+    if (!request.prompt || request.prompt.trim().length === 0) {
+      throw new Error('Prompt cannot be empty');
+    }
+
     const fallbackCount = request._fallbackCount || 0;
     if (fallbackCount > 1) {
       throw new Error('Maximum fallback attempts exceeded');
@@ -109,9 +114,9 @@ export class AIManager extends EventEmitter {
       const startTime = Date.now();
       
       // Add context if available
-      let finalPrompt = request.prompt;
+      let finalPrompt = request.prompt.trim();
       if (this.contextManager.getMessages().length > 0) {
-        finalPrompt = this.contextManager.buildPrompt(request.systemPrompt) + '\n\nUser: ' + request.prompt + '\nAssistant:';
+        finalPrompt = this.contextManager.buildPrompt(request.systemPrompt) + '\n\nUser: ' + finalPrompt + '\nAssistant:';
       }
 
       const enhancedRequest: GenerateTextRequest = {
@@ -121,9 +126,16 @@ export class AIManager extends EventEmitter {
 
       const response = await this.currentProvider!.generateText(enhancedRequest);
       
-      // Add to context
-      this.contextManager.addMessage('user', request.prompt);
-      this.contextManager.addMessage('assistant', response.text);
+      // Validate response
+      if (!response || !response.text) {
+        throw new Error('Invalid response from provider');
+      }
+      
+      // Add to context only if we got a valid response
+      if (response.text.trim()) {
+        this.contextManager.addMessage('user', request.prompt);
+        this.contextManager.addMessage('assistant', response.text);
+      }
       
       const duration = Date.now() - startTime;
       this.emit('generation-complete', { 
@@ -172,6 +184,9 @@ export class AIManager extends EventEmitter {
       }
     }
 
+    let fullResponse = '';
+    let streamStarted = false;
+
     try {
       this.emit('generation-start', { 
         provider: this.currentProvider!.name, 
@@ -189,11 +204,16 @@ export class AIManager extends EventEmitter {
         prompt: finalPrompt
       };
 
-      let fullResponse = '';
       const startTime = Date.now();
 
       for await (const chunk of this.currentProvider!.streamText(enhancedRequest)) {
-        fullResponse = chunk.text;
+        streamStarted = true;
+        
+        // Accumulate response text
+        if (chunk.text && chunk.text.length > fullResponse.length) {
+          fullResponse = chunk.text;
+        }
+        
         yield chunk;
         
         if (chunk.done) {
@@ -201,9 +221,11 @@ export class AIManager extends EventEmitter {
         }
       }
 
-      // Add to context after completion
-      this.contextManager.addMessage('user', request.prompt);
-      this.contextManager.addMessage('assistant', fullResponse);
+      // Add to context after completion only if we got a response
+      if (fullResponse.trim()) {
+        this.contextManager.addMessage('user', request.prompt);
+        this.contextManager.addMessage('assistant', fullResponse);
+      }
       
       const duration = Date.now() - startTime;
       this.emit('generation-complete', { 
@@ -215,8 +237,8 @@ export class AIManager extends EventEmitter {
     } catch (error) {
       this.logger?.error('Streaming generation failed:', error);
       
-      // Try fallback if retryable and we haven't exceeded max attempts
-      if (error instanceof AIError && error.retryable && fallbackCount < 1) {
+      // Only try fallback if we haven't started streaming yet and it's retryable
+      if (!streamStarted && error instanceof AIError && error.retryable && fallbackCount < 1) {
         try {
           await this.tryFallback();
           const fallbackRequest = { ...request, _fallbackCount: fallbackCount + 1 };
@@ -235,6 +257,10 @@ export class AIManager extends EventEmitter {
    * Switch to a different provider
    */
   public async switchProvider(providerName: string, modelName?: string): Promise<void> {
+    if (!providerName || providerName.trim().length === 0) {
+      throw new Error('Provider name cannot be empty');
+    }
+
     const provider = this.providers.get(providerName);
     if (!provider) {
       throw new Error(`Provider '${providerName}' not found`);
@@ -252,8 +278,13 @@ export class AIManager extends EventEmitter {
     this.currentProvider = provider;
     
     // Load model if specified
-    if (modelName) {
-      await this.loadModel(providerName, modelName);
+    if (modelName && modelName.trim().length > 0) {
+      try {
+        await this.loadModel(providerName, modelName);
+      } catch (error) {
+        this.logger?.warn(`Failed to load model '${modelName}' for provider '${providerName}':`, error);
+        // Don't fail the provider switch if model loading fails
+      }
     }
 
     this.emit('provider-changed', { 

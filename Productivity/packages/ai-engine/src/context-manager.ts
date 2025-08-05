@@ -21,9 +21,14 @@ export class ContextManager {
    * Add a message to the context window
    */
   public addMessage(role: 'system' | 'user' | 'assistant', content: string): void {
+    if (!content || content.trim().length === 0) {
+      this.logger?.warn('Attempted to add empty message to context');
+      return;
+    }
+
     const message: ContextMessage = {
       role,
-      content,
+      content: content.trim(),
       timestamp: Date.now(),
       tokens: this.estimateTokens(content)
     };
@@ -35,6 +40,12 @@ export class ContextManager {
 
     // Trim context if needed
     this.trimContext();
+    
+    // Prevent unbounded growth by enforcing a maximum message count
+    const MAX_MESSAGES = 100;
+    if (this.context.messages.length > MAX_MESSAGES) {
+      this.optimizeContext();
+    }
   }
 
   /**
@@ -103,6 +114,11 @@ export class ContextManager {
    * Update max context length
    */
   public setMaxLength(maxLength: number): void {
+    if (maxLength <= 0) {
+      this.logger?.warn('Invalid max length provided, using default');
+      maxLength = 4096;
+    }
+    
     this.context.maxLength = maxLength;
     this.trimContext();
   }
@@ -111,7 +127,13 @@ export class ContextManager {
    * Trim context to fit within max length
    */
   private trimContext(): void {
-    while (this.context.currentLength > this.context.maxLength && this.context.messages.length > 1) {
+    let attempts = 0;
+    const MAX_ATTEMPTS = this.context.messages.length; // Prevent infinite loops
+    
+    while (this.context.currentLength > this.context.maxLength && 
+           this.context.messages.length > 1 && 
+           attempts < MAX_ATTEMPTS) {
+      
       // Keep system messages, remove oldest user/assistant messages
       let removedMessage: ContextMessage | undefined;
       
@@ -130,7 +152,12 @@ export class ContextManager {
         // Only system messages left, break to avoid infinite loop
         break;
       }
+      
+      attempts++;
     }
+    
+    // Recalculate current length to ensure consistency
+    this.context.currentLength = this.context.messages.reduce((sum, msg) => sum + (msg.tokens || 0), 0);
   }
 
   /**

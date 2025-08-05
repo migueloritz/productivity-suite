@@ -29,29 +29,39 @@ class DocumentService:
         self.pdf_processor = ComprehensivePDFProcessor(self.storage)
         # Add more processors for other formats later
     
-    async def validate_upload(self, filename: str, file_size: int, content_type: str) -> None:
+    async def validate_upload(self, filename: str, file_size: int, content_type: Optional[str]) -> None:
         """Validate file upload parameters"""
+        if not filename:
+            raise ValueError("Filename cannot be empty")
+            
         # Check file size
+        if file_size <= 0:
+            raise ValueError("File size must be greater than 0")
+            
         if file_size > settings.max_file_size_bytes:
             raise ValueError(f"File size exceeds maximum allowed size of {settings.MAX_FILE_SIZE_MB}MB")
         
         # Check file type
         extension = Path(filename).suffix.lower()[1:]  # Remove the dot
+        if not extension:
+            raise ValueError("File must have an extension")
+            
         if extension not in settings.supported_formats_list:
             raise ValueError(f"File type '{extension}' not supported. Supported formats: {settings.SUPPORTED_FORMATS}")
         
         # Additional content type validation
-        expected_types = {
-            'pdf': ['application/pdf'],
-            'docx': ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-            'txt': ['text/plain'],
-            'csv': ['text/csv', 'application/csv'],
-            'html': ['text/html'],
-            'xlsx': ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
-        }
-        
-        if extension in expected_types and content_type not in expected_types[extension]:
-            logger.warning(f"Unexpected content type {content_type} for {extension} file")
+        if content_type:
+            expected_types = {
+                'pdf': ['application/pdf'],
+                'docx': ['application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+                'txt': ['text/plain'],
+                'csv': ['text/csv', 'application/csv'],
+                'html': ['text/html'],
+                'xlsx': ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet']
+            }
+            
+            if extension in expected_types and content_type not in expected_types[extension]:
+                logger.warning(f"Unexpected content type {content_type} for {extension} file")
     
     async def create_document(self, upload_request: DocumentUploadRequest) -> Document:
         """Create a new document record"""
@@ -83,12 +93,17 @@ class DocumentService:
     
     async def process_document(self, document_id: str, file_content: bytes) -> Document:
         """Process uploaded document"""
+        if not document_id or not file_content:
+            raise ValueError("Document ID and file content are required")
+            
         start_time = time.time()
+        document = None
+        temp_file_path = None
         
         try:
             # Get document record
             # document = await self.db.get_document(document_id)
-            # For now, create a placeholder
+            # For now, create a placeholder - this should be replaced with actual DB integration
             document = Document(
                 id=document_id,
                 filename="temp.pdf",
@@ -120,12 +135,12 @@ class DocumentService:
             
             elif document.file_type == DocumentType.DOCX:
                 # TODO: Implement DOCX processor
-                pass
-            
+                logger.warning("DOCX processing not yet implemented")
+                
             elif document.file_type == DocumentType.TXT:
                 # TODO: Implement TXT processor
-                pass
-            
+                logger.warning("TXT processing not yet implemented")
+                
             else:
                 raise ValueError(f"Unsupported file type: {document.file_type}")
             
@@ -137,9 +152,18 @@ class DocumentService:
             
         except Exception as e:
             logger.error(f"Document processing failed for {document_id}: {e}")
-            document.status = DocumentStatus.FAILED
-            document.error_message = str(e)
-            document.processing_time = time.time() - start_time
+            if document:
+                document.status = DocumentStatus.FAILED
+                document.error_message = str(e)
+                document.processing_time = time.time() - start_time
+            raise  # Re-raise the exception for proper error handling
+        finally:
+            # Clean up temporary file if created
+            if temp_file_path and Path(temp_file_path).exists():
+                try:
+                    Path(temp_file_path).unlink()
+                except Exception as cleanup_error:
+                    logger.warning(f"Failed to cleanup temp file {temp_file_path}: {cleanup_error}")
         
         # Update in database
         # await self.db.update_document(document)

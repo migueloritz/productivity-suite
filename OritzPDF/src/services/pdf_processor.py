@@ -42,6 +42,7 @@ class PyMuPDFProcessor(PDFProcessor):
     
     async def extract_text(self, file_path: str) -> Tuple[str, List[ExtractedText]]:
         """Extract text using PyMuPDF"""
+        doc = None
         try:
             doc = fitz.open(file_path)
             full_text = ""
@@ -49,29 +50,34 @@ class PyMuPDFProcessor(PDFProcessor):
             
             for page_num, page in enumerate(doc):
                 text = page.get_text()
-                full_text += text + "\n"
+                if text:  # Only add non-empty text
+                    full_text += text + "\n"
                 
-                # Get text with bounding boxes
+                # Get text with bounding boxes for better accuracy
                 blocks = page.get_text("dict")
                 page_data = ExtractedText(
                     page_number=page_num + 1,
-                    text=text,
+                    text=text.strip(),
                     confidence=0.95  # PyMuPDF doesn't provide confidence
                 )
                 pages.append(page_data)
             
-            doc.close()
             return full_text.strip(), pages
             
         except Exception as e:
             logger.error(f"PyMuPDF text extraction failed: {e}")
             raise
+        finally:
+            # Ensure document is always closed
+            if doc is not None:
+                doc.close()
     
     async def extract_metadata(self, file_path: str) -> DocumentMetadata:
         """Extract metadata using PyMuPDF"""
+        doc = None
         try:
             doc = fitz.open(file_path)
-            metadata = doc.metadata
+            metadata = doc.metadata or {}
             
             result = DocumentMetadata(
                 title=metadata.get("title"),
@@ -83,12 +89,14 @@ class PyMuPDFProcessor(PDFProcessor):
                 pages=doc.page_count
             )
             
-            doc.close()
             return result
             
         except Exception as e:
             logger.error(f"PyMuPDF metadata extraction failed: {e}")
             raise
+        finally:
+            if doc is not None:
+                doc.close()
     
     async def extract_tables(self, file_path: str) -> List[Dict[str, Any]]:
         """Extract tables using PyMuPDF"""
@@ -111,6 +119,7 @@ class PyMuPDFProcessor(PDFProcessor):
     async def extract_images(self, file_path: str) -> List[Dict[str, Any]]:
         """Extract images using PyMuPDF"""
         images = []
+        doc = None
         try:
             doc = fitz.open(file_path)
             
@@ -119,27 +128,34 @@ class PyMuPDFProcessor(PDFProcessor):
                 
                 for img_index, img in enumerate(image_list):
                     xref = img[0]
-                    pix = fitz.Pixmap(doc, xref)
-                    
-                    images.append({
-                        "page": page_num + 1,
-                        "index": img_index,
-                        "width": pix.width,
-                        "height": pix.height,
-                        "colorspace": pix.colorspace.name,
-                        "xref": xref
-                    })
-                    
-                    pix = None  # Free memory
+                    pix = None
+                    try:
+                        pix = fitz.Pixmap(doc, xref)
+                        
+                        images.append({
+                            "page": page_num + 1,
+                            "index": img_index,
+                            "width": pix.width,
+                            "height": pix.height,
+                            "colorspace": pix.colorspace.name if pix.colorspace else "unknown",
+                            "xref": xref
+                        })
+                    except Exception as img_error:
+                        logger.warning(f"Failed to process image {img_index} on page {page_num + 1}: {img_error}")
+                    finally:
+                        if pix is not None:
+                            pix = None  # Free memory
             
-            doc.close()
             return images
             
         except Exception as e:
             logger.error(f"PyMuPDF image extraction failed: {e}")
             return []
+        finally:
+            if doc is not None:
+                doc.close()
     
-    def _parse_date(self, date_str: str) -> Optional[datetime]:
+    def _parse_date(self, date_str: Optional[str]) -> Optional[datetime]:
         """Parse PDF date string"""
         if not date_str:
             return None
@@ -148,8 +164,11 @@ class PyMuPDFProcessor(PDFProcessor):
             if date_str.startswith("D:"):
                 date_str = date_str[2:]
             # Simple parsing - can be enhanced
-            return datetime.strptime(date_str[:8], "%Y%m%d")
-        except:
+            if len(date_str) >= 8:
+                return datetime.strptime(date_str[:8], "%Y%m%d")
+            return None
+        except Exception as e:
+            logger.warning(f"Failed to parse date '{date_str}': {e}")
             return None
 
 
