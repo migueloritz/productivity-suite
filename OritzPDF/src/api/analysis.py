@@ -19,11 +19,25 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Dependency injection
+_services_cache = None
+
 async def get_services():
-    cache_service = get_cache_service()
-    await cache_service.connect()
-    document_service = DocumentService(cache_service=cache_service)
-    return document_service, cache_service
+    """Get document and cache services (singleton pattern)"""
+    global _services_cache
+    
+    if _services_cache is None:
+        try:
+            cache_service = get_cache_service()
+            await cache_service.connect()
+            document_service = DocumentService(cache_service=cache_service)
+            _services_cache = (document_service, cache_service)
+        except Exception as e:
+            logger.error(f"Failed to initialize services: {e}")
+            # Return services without cache if cache fails
+            document_service = DocumentService()
+            _services_cache = (document_service, None)
+    
+    return _services_cache
 
 
 @router.post("/summarize", response_model=SummarizationResponse)
@@ -48,10 +62,11 @@ async def summarize_document(
         raise HTTPException(status_code=404, detail="Document not found")
     
     # Check cache first
-    cache_key = f"{request.document_id}_{request.page_range}" if request.page_range else request.document_id
-    cached_summary = await cache_service.get_summary(request.document_id, cache_key)
-    if cached_summary:
-        return cached_summary
+    if cache_service:
+        cache_key = f"{request.document_id}_{request.page_range}" if request.page_range else request.document_id
+        cached_summary = await cache_service.get_summary(request.document_id, cache_key)
+        if cached_summary:
+            return cached_summary
     
     # TODO: Implement actual summarization using Hugging Face transformers
     # For now, return a placeholder
@@ -63,7 +78,8 @@ async def summarize_document(
     )
     
     # Cache the result
-    await cache_service.set_summary(request.document_id, summary_response, cache_key)
+    if cache_service:
+        await cache_service.set_summary(request.document_id, summary_response, cache_key)
     
     return summary_response
 
@@ -92,9 +108,10 @@ async def answer_question(
     question_hash = hashlib.md5(request.question.encode()).hexdigest()
     
     # Check cache first
-    cached_answer = await cache_service.get_qa_result(request.document_id, question_hash)
-    if cached_answer:
-        return cached_answer
+    if cache_service:
+        cached_answer = await cache_service.get_qa_result(request.document_id, question_hash)
+        if cached_answer:
+            return cached_answer
     
     # TODO: Implement actual Q&A using Hugging Face transformers
     # For now, return a placeholder
@@ -108,7 +125,8 @@ async def answer_question(
     )
     
     # Cache the result
-    await cache_service.set_qa_result(request.document_id, question_hash, qa_response)
+    if cache_service:
+        await cache_service.set_qa_result(request.document_id, question_hash, qa_response)
     
     return qa_response
 
