@@ -1,0 +1,101 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:1421",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "Mini Claude Code",
+    "version": "1.0.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "fs": {
+        "all": true,
+        "scope": ["**"]
+      },
+      "dialog": {
+        "all": true
+      },
+      "window": {
+        "all": true
+      },
+      "shell": {
+        "all": true,
+        "execute": true,
+        "sidecar": true,
+        "open": true
+      },
+      "path": {
+        "all": true
+      },
+      "os": {
+        "all": true
+      },
+      "process": {
+        "all": true,
+        "exit": true,
+        "relaunch": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "category": "Developer Tool",
+      "copyright": "",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "identifier": "com.productivity-suite.mini-claude-code",
+      "longDescription": "AI-powered code editor with Monaco editor, LSP support, integrated terminal, and debugging capabilities",
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "",
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null
+      },
+      "resources": [],
+      "shortDescription": "AI-powered code editor",
+      "targets": "all",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "security": {
+      "csp": null
+    },
+    "updater": {
+      "active": false
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 900,
+        "resizable": true,
+        "title": "Mini Claude Code",
+        "width": 1400,
+        "minWidth": 1000,
+        "minHeight": 700,
+        "center": true,
+        "decorations": true,
+        "alwaysOnTop": false,
+        "maximized": false,
+        "visible": true,
+        "transparent": false,
+        "fileDropEnabled": true
+      }
+    ]
+  }
+}

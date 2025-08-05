@@ -1,0 +1,482 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+/* TipTap Editor Styles */
+.ProseMirror {
+  outline: none;
+  padding: 2rem;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #374151;
+  min-height: calc(100vh - 200px);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.ProseMirror:focus {
+  outline: none;
+}
+
+.ProseMirror h1 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  color: #111827;
+}
+
+.ProseMirror h2 {
+  font-size: 1.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 1.75rem;
+  margin-bottom: 0.875rem;
+  color: #111827;
+}
+
+.ProseMirror h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: #111827;
+}
+
+.ProseMirror h4 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 1.25rem;
+  margin-bottom: 0.625rem;
+  color: #111827;
+}
+
+.ProseMirror h5 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 1.125rem;
+  margin-bottom: 0.5625rem;
+  color: #111827;
+}
+
+.ProseMirror h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  color: #111827;
+}
+
+.ProseMirror p {
+  margin-bottom: 1rem;
+}
+
+.ProseMirror strong {
+  font-weight: 700;
+}
+
+.ProseMirror em {
+  font-style: italic;
+}
+
+.ProseMirror code {
+  background-color: #f3f4f6;
+  padding: 0.25rem 0.375rem;
+  border-radius: 0.25rem;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.875em;
+  color: #dc2626;
+}
+
+.ProseMirror pre {
+  background-color: #f3f4f6;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.ProseMirror pre code {
+  background: none;
+  padding: 0;
+  color: #374151;
+}
+
+.ProseMirror blockquote {
+  border-left: 4px solid #3b82f6;
+  margin: 1.5rem 0;
+  padding-left: 1rem;
+  font-style: italic;
+  color: #6b7280;
+}
+
+.ProseMirror ul, .ProseMirror ol {
+  padding-left: 1.5rem;
+  margin: 1rem 0;
+}
+
+.ProseMirror li {
+  margin-bottom: 0.5rem;
+}
+
+.ProseMirror ul li {
+  list-style-type: disc;
+}
+
+.ProseMirror ol li {
+  list-style-type: decimal;
+}
+
+.ProseMirror a {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+.ProseMirror a:hover {
+  color: #1d4ed8;
+}
+
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1rem 0;
+}
+
+.ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.ProseMirror th, .ProseMirror td {
+  border: 1px solid #d1d5db;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.ProseMirror th {
+  background-color: #f9fafb;
+  font-weight: 600;
+}
+
+.ProseMirror .tableWrapper {
+  overflow-x: auto;
+}
+
+.ProseMirror .selectedCell:after {
+  z-index: 2;
+  position: absolute;
+  content: "";
+  left: 0; right: 0; top: 0; bottom: 0;
+  background: rgba(200, 200, 255, 0.4);
+  pointer-events: none;
+}
+
+.ProseMirror .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  z-index: 20;
+  background-color: #3b82f6;
+  pointer-events: none;
+}
+
+.ProseMirror.resize-cursor {
+  cursor: ew-resize;
+  cursor: col-resize;
+}
+
+/* Task Lists */
+.ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding: 0;
+}
+
+.ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label {
+  margin-right: 0.5rem;
+  user-select: none;
+}
+
+.ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1;
+}
+
+.ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  text-decoration: line-through;
+  color: #6b7280;
+}
+
+/* Placeholder */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #9ca3af;
+  pointer-events: none;
+  height: 0;
+}
+
+/* Focus states */
+.ProseMirror-focused {
+  outline: none;
+}
+
+/* Selection */
+.ProseMirror-selectednode {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Dark mode */
+.dark .ProseMirror {
+  color: #e5e7eb;
+  background-color: #111827;
+}
+
+.dark .ProseMirror h1,
+.dark .ProseMirror h2,
+.dark .ProseMirror h3,
+.dark .ProseMirror h4,
+.dark .ProseMirror h5,
+.dark .ProseMirror h6 {
+  color: #f9fafb;
+}
+
+.dark .ProseMirror code {
+  background-color: #374151;
+  color: #fbbf24;
+}
+
+.dark .ProseMirror pre {
+  background-color: #374151;
+}
+
+.dark .ProseMirror pre code {
+  color: #e5e7eb;
+}
+
+.dark .ProseMirror blockquote {
+  color: #9ca3af;
+}
+
+.dark .ProseMirror th {
+  background-color: #374151;
+}
+
+.dark .ProseMirror th,
+.dark .ProseMirror td {
+  border-color: #4b5563;
+}
+
+.dark .ProseMirror p.is-editor-empty:first-child::before {
+  color: #6b7280;
+}
+
+/* Toolbar Styles */
+.toolbar {
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  min-height: 60px;
+}
+
+.dark .toolbar {
+  border-bottom-color: #374151;
+  background-color: #1f2937;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.5rem;
+  border-right: 1px solid #e5e7eb;
+}
+
+.dark .toolbar-group {
+  border-right-color: #374151;
+}
+
+.toolbar-group:last-child {
+  border-right: none;
+}
+
+.toolbar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 0.375rem;
+  border: none;
+  background: none;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.toolbar-button:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.toolbar-button.active {
+  background-color: #3b82f6;
+  color: #ffffff;
+}
+
+.toolbar-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dark .toolbar-button {
+  color: #e5e7eb;
+}
+
+.dark .toolbar-button:hover {
+  background-color: #374151;
+  color: #f9fafb;
+}
+
+/* Status Bar */
+.status-bar {
+  border-top: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+  padding: 0.5rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  color: #6b7280;
+  min-height: 36px;
+}
+
+.dark .status-bar {
+  border-top-color: #374151;
+  background-color: #1f2937;
+  color: #9ca3af;
+}
+
+/* Sidebar */
+.sidebar {
+  border-right: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.dark .sidebar {
+  border-right-color: #374151;
+  background-color: #1f2937;
+}
+
+/* AI Panel */
+.ai-panel {
+  border-left: 1px solid #e5e7eb;
+  background-color: #ffffff;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.dark .ai-panel {
+  border-left-color: #374151;
+  background-color: #1f2937;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Animation Classes */
+.fade-in {
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+.slide-in-left {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+/* Print Styles */
+@media print {
+  .toolbar,
+  .sidebar,
+  .ai-panel,
+  .status-bar {
+    display: none !important;
+  }
+  
+  .ProseMirror {
+    max-width: none;
+    padding: 0;
+    font-size: 12pt;
+    line-height: 1.5;
+  }
+}

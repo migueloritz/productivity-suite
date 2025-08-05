@@ -1,0 +1,287 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Run Tests
+    uses: ./.github/workflows/test.yml
+
+  build-tauri:
+    name: Build Tauri Apps
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, ubuntu-20.04, windows-latest]
+        app: ['copilot-nest', 'copilot-doc', 'copilot-grid', 'copilot-inbox', 'mini-claude-code']
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './apps/${{ matrix.app }}/src-tauri -> target'
+
+      - name: Install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-20.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build packages
+        run: npm run build
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: ./apps/${{ matrix.app }}
+          tagName: ${{ matrix.app }}-v__VERSION__
+          releaseName: '${{ matrix.app }} v__VERSION__'
+          releaseBody: 'See the assets to download this version and install.'
+          releaseDraft: true
+          prerelease: false
+          includeDebug: false
+
+  build-web:
+    name: Build Web Version
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build packages
+        run: npm run build
+
+      - name: Build web applications
+        run: |
+          npm run build --workspace=apps/copilot-nest
+          npm run build --workspace=apps/copilot-doc
+          npm run build --workspace=apps/copilot-grid
+          npm run build --workspace=apps/copilot-inbox
+          npm run build --workspace=apps/mini-claude-code
+
+      - name: Create web distribution
+        run: |
+          mkdir -p dist/web
+          cp -r apps/copilot-nest/dist dist/web/nest
+          cp -r apps/copilot-doc/dist dist/web/doc
+          cp -r apps/copilot-grid/dist dist/web/grid
+          cp -r apps/copilot-inbox/dist dist/web/inbox
+          cp -r apps/mini-claude-code/dist dist/web/code
+
+      - name: Upload web artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: web-distribution
+          path: dist/web/
+
+  docker-build:
+    name: Build Docker Images
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/productivity-suite
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  create-release:
+    name: Create Release
+    needs: [build-tauri, build-web, docker-build]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get tag version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Download web artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: web-distribution
+          path: ./web-dist
+
+      - name: Create release archive
+        run: |
+          tar -czf productivity-suite-web-${{ steps.version.outputs.VERSION }}.tar.gz -C web-dist .
+          zip -r productivity-suite-web-${{ steps.version.outputs.VERSION }}.zip web-dist/
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Generate changelog from commits since last tag
+          if [ $(git tag --list | wc -l) -gt 1 ]; then
+            LAST_TAG=$(git describe --tags --abbrev=0 HEAD^)
+            echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+            git log --pretty=format:"- %s (%h)" $LAST_TAG..HEAD >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "CHANGELOG=Initial release" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          release_name: Productivity Suite ${{ steps.version.outputs.VERSION }}
+          body: |
+            ## What's New in ${{ steps.version.outputs.VERSION }}
+            
+            ${{ steps.changelog.outputs.CHANGELOG }}
+            
+            ## Downloads
+            
+            ### Desktop Applications
+            - Windows: Download the `.msi` file from the assets below
+            - macOS: Download the `.dmg` file from the assets below  
+            - Linux: Download the `.AppImage` file from the assets below
+            
+            ### Web Version
+            - Download and extract `productivity-suite-web-${{ steps.version.outputs.VERSION }}.tar.gz`
+            - Serve the files with any web server
+            
+            ### Docker
+            ```bash
+            docker run -p 8080:80 ghcr.io/${{ github.repository_owner }}/productivity-suite:${{ steps.version.outputs.VERSION }}
+            ```
+            
+            ## Installation Instructions
+            
+            1. Download the appropriate file for your platform
+            2. Install/run the application
+            3. Follow the setup wizard for initial configuration
+            
+            ## System Requirements
+            
+            - **Desktop**: Windows 10+, macOS 10.15+, or Linux with GTK 3.0+
+            - **Web**: Modern browser with JavaScript enabled
+            - **RAM**: 4GB minimum, 8GB recommended
+            - **Storage**: 500MB free space
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'alpha') }}
+
+      - name: Upload web archive to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./productivity-suite-web-${{ steps.version.outputs.VERSION }}.tar.gz
+          asset_name: productivity-suite-web-${{ steps.version.outputs.VERSION }}.tar.gz
+          asset_content_type: application/gzip
+
+      - name: Upload web zip to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./productivity-suite-web-${{ steps.version.outputs.VERSION }}.zip
+          asset_name: productivity-suite-web-${{ steps.version.outputs.VERSION }}.zip
+          asset_content_type: application/zip
+
+  deploy-docs:
+    name: Deploy Documentation
+    needs: create-release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build documentation
+        run: |
+          # Build API documentation
+          npx typedoc --out docs/api packages/*/src/index.ts
+          
+          # Build user documentation
+          mkdir -p docs/user
+          cp README.md docs/user/
+          cp docs/*.md docs/user/ 2>/dev/null || true
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          cname: productivity-suite.example.com

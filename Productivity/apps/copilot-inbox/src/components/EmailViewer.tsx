@@ -1,0 +1,205 @@
+import React, { useState } from 'react';
+import { format } from 'date-fns';
+import { Email } from '../types';
+import DOMPurify from 'dompurify';
+import {
+  StarIcon,
+  PaperClipIcon,
+  ArrowUturnLeftIcon,
+  ArrowUturnRightIcon,
+  TrashIcon,
+  ArchiveBoxIcon,
+  PrinterIcon,
+} from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
+import clsx from 'clsx';
+
+interface EmailViewerProps {
+  email: Email;
+  onReply: (email: Email) => void;
+  onForward: (email: Email) => void;
+}
+
+export const EmailViewer: React.FC<EmailViewerProps> = ({
+  email,
+  onReply,
+  onForward,
+}) => {
+  const [showFullHeaders, setShowFullHeaders] = useState(false);
+  const [contentType, setContentType] = useState<'html' | 'text'>('html');
+
+  const formatDate = (date: Date) => {
+    return format(date, 'PPP p');
+  };
+
+  const sanitizeHTML = (html: string) => {
+    return DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: [
+        'p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'ul', 'ol', 'li', 'blockquote', 'a', 'img', 'div', 'span', 'table',
+        'tr', 'td', 'th', 'tbody', 'thead', 'tfoot'
+      ],
+      ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style'],
+      FORBID_TAGS: ['script', 'object', 'embed', 'iframe'],
+    });
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  return (
+    <div className="h-full flex flex-col bg-white">
+      {/* Header */}
+      <div className="flex-shrink-0 border-b border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <button className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100">
+              <StarIcon className="w-5 h-5" />
+            </button>
+            <button className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100">
+              <ArchiveBoxIcon className="w-5 h-5" />
+            </button>
+            <button className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100">
+              <TrashIcon className="w-5 h-5" />
+            </button>
+            <button
+              onClick={handlePrint}
+              className="p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+            >
+              <PrinterIcon className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => onReply(email)}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <ArrowUturnLeftIcon className="w-4 h-4 mr-2" />
+              Reply
+            </button>
+            <button
+              onClick={() => onForward(email)}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
+              <ArrowUturnRightIcon className="w-4 h-4 mr-2" />
+              Forward
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <h1 className="text-2xl font-semibold text-gray-900">
+            {email.subject || '(no subject)'}
+          </h1>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-medium">
+                  {(email.from.name || email.from.address).charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div>
+                <div className="text-sm font-medium text-gray-900">
+                  {email.from.name || email.from.address}
+                </div>
+                <div className="text-sm text-gray-500">
+                  to {email.to.map(addr => addr.name || addr.address).join(', ')}
+                </div>
+              </div>
+            </div>
+            <div className="text-sm text-gray-500">
+              {formatDate(email.date)}
+            </div>
+          </div>
+
+          {/* Show/Hide Headers */}
+          <button
+            onClick={() => setShowFullHeaders(!showFullHeaders)}
+            className="text-sm text-blue-600 hover:text-blue-700"
+          >
+            {showFullHeaders ? 'Hide details' : 'Show details'}
+          </button>
+
+          {showFullHeaders && (
+            <div className="bg-gray-50 p-4 rounded-lg text-sm space-y-2">
+              <div><strong>From:</strong> {email.from.address}</div>
+              <div><strong>To:</strong> {email.to.map(addr => addr.address).join(', ')}</div>
+              {email.cc && email.cc.length > 0 && (
+                <div><strong>CC:</strong> {email.cc.map(addr => addr.address).join(', ')}</div>
+              )}
+              <div><strong>Date:</strong> {formatDate(email.date)}</div>
+              <div><strong>Message-ID:</strong> {email.messageId}</div>
+            </div>
+          )}
+
+          {/* Attachments */}
+          {email.attachments.length > 0 && (
+            <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
+              <PaperClipIcon className="w-5 h-5 text-gray-400" />
+              <span className="text-sm text-gray-700">
+                {email.attachments.length} attachment{email.attachments.length > 1 ? 's' : ''}
+              </span>
+              <div className="flex space-x-2">
+                {email.attachments.map((attachment) => (
+                  <span
+                    key={attachment.id}
+                    className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-white text-gray-700 border"
+                  >
+                    {attachment.filename}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-auto p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setContentType('html')}
+              className={clsx(
+                'px-3 py-1 text-sm rounded-md',
+                contentType === 'html'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              Rich Text
+            </button>
+            <button
+              onClick={() => setContentType('text')}
+              className={clsx(
+                'px-3 py-1 text-sm rounded-md',
+                contentType === 'text'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              Plain Text
+            </button>
+          </div>
+        </div>
+
+        <div className="email-content">
+          {contentType === 'html' && email.bodyHtml ? (
+            <div
+              dangerouslySetInnerHTML={{
+                __html: sanitizeHTML(email.bodyHtml),
+              }}
+            />
+          ) : (
+            <pre className="whitespace-pre-wrap font-sans text-gray-700 leading-relaxed">
+              {email.bodyText || 'No content available'}
+            </pre>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

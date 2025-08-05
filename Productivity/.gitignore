@@ -1,0 +1,81 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production builds
+dist/
+build/
+out/
+
+# Turbo
+.turbo/
+
+# TypeScript
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Jest
+jest-results.json
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Tauri
+src-tauri/target/
+src-tauri/Cargo.lock
+
+# AI Models (if storing locally)
+models/
+*.gguf
+*.bin
+
+# Temporary files
+*.tmp
+*.temp
+
+# Package manager locks (keeping pnpm-lock.yaml)
+package-lock.json
+yarn.lock
+
+# Local development
+.dev/
+*.local

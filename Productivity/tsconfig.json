@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": false,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "incremental": true,
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@productivity-suite/shared-ui": ["./packages/shared-ui/src"],
+      "@productivity-suite/ai-engine": ["./packages/ai-engine/src"],
+      "@productivity-suite/file-system": ["./packages/file-system/src"]
+    }
+  },
+  "include": [],
+  "references": [
+    { "path": "./packages/shared-ui" },
+    { "path": "./packages/ai-engine" },
+    { "path": "./packages/file-system" },
+    { "path": "./apps/copilot-nest" },
+    { "path": "./apps/copilot-doc" },
+    { "path": "./apps/copilot-grid" },
+    { "path": "./apps/copilot-inbox" },
+    { "path": "./apps/mini-claude-code" }
+  ]
+}

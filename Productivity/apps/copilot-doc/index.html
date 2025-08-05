@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CopilotDoc - AI-Powered Word Processor</title>
+    <meta name="description" content="A modern word processor with AI-powered writing assistance, rich text editing, and seamless export capabilities." />
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Theme -->
+    <script>
+      // Dark mode initialization to prevent flash
+      (function() {
+        const theme = localStorage.getItem('theme') || 'system';
+        if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+    
+    <!-- Styles -->
+    <style>
+      /* Loading screen */
+      #loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        transition: opacity 0.3s ease;
+      }
+      
+      .dark #loading {
+        background: #111827;
+      }
+      
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #e5e7eb;
+        border-top: 3px solid #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      .dark .loading-spinner {
+        border-color: #374151;
+        border-top-color: #60a5fa;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      /* Prevent FOUC */
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background: #ffffff;
+        color: #111827;
+      }
+      
+      .dark body {
+        background: #111827;
+        color: #f9fafb;
+      }
+      
+      /* App container */
+      #root {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      /* Print styles */
+      @media print {
+        .no-print {
+          display: none !important;
+        }
+        
+        body {
+          background: white !important;
+          color: black !important;
+        }
+        
+        .ProseMirror {
+          max-width: none !important;
+          padding: 0 !important;
+          font-size: 12pt !important;
+          line-height: 1.5 !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Loading screen -->
+    <div id="loading">
+      <div class="loading-spinner"></div>
+    </div>
+    
+    <!-- App root -->
+    <div id="root"></div>
+    
+    <!-- Main script -->
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Remove loading screen when app loads -->
+    <script>
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          const loading = document.getElementById('loading');
+          if (loading) {
+            loading.style.opacity = '0';
+            setTimeout(() => loading.remove(), 300);
+          }
+        }, 500);
+      });
+    </script>
+  </body>
+</html>
