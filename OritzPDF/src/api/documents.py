@@ -16,10 +16,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # Dependency injection
+_document_service_instance = None
+
 async def get_document_service() -> DocumentService:
-    cache_service = get_cache_service()
-    await cache_service.connect()
-    return DocumentService(cache_service=cache_service)
+    """Get document service instance (singleton pattern)"""
+    global _document_service_instance
+    
+    if _document_service_instance is None:
+        try:
+            cache_service = get_cache_service()
+            await cache_service.connect()
+            _document_service_instance = DocumentService(cache_service=cache_service)
+        except Exception as e:
+            logger.error(f"Failed to initialize document service: {e}")
+            # Return service without cache if cache fails
+            _document_service_instance = DocumentService()
+    
+    return _document_service_instance
 
 
 @router.post("/upload", response_model=DocumentUploadResponse)
@@ -35,18 +48,23 @@ async def upload_document(
     Maximum file size: 32MB
     """
     try:
-        # Create upload request
+        # Validate file
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="Filename is required")
+        
+        # Read file content first to get actual size
+        file_content = await file.read()
+        actual_size = len(file_content)
+        
+        # Create upload request with actual size
         upload_request = DocumentUploadRequest(
             filename=file.filename,
-            content_type=file.content_type,
-            file_size=file.size or 0
+            content_type=file.content_type or "application/octet-stream",
+            file_size=actual_size
         )
         
         # Create document record
         document = await service.create_document(upload_request)
-        
-        # Read file content
-        file_content = await file.read()
         
         # Process document in background
         background_tasks.add_task(
